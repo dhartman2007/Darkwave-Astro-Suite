@@ -9,11 +9,27 @@ from imaging_guidance import guidance
 from core import catalog, plan, track, records, save, image_urls, forecast, DATA, remember_api_key, remembered_api_key, forecast_us_units, planned_targets, set_planned
 mobile = st.query_params.get('view','desktop') == 'mobile'
 st.set_page_config(page_title='Darkwave Astro Suite',page_icon='🔭',layout='wide',initial_sidebar_state='collapsed' if mobile else 'auto')
-appearance=st.radio('Display theme',['Light','Dark'],index=0,horizontal=True,key='display_theme',
-                    help='Light follows your device theme. Dark uses black and red for nighttime observing.')
+st.title('🔭 Darkwave Astro Suite')
+st.caption('Plan your night • Record your sessions • Review your images')
+with st.container(key='theme_controls'):
+    appearance=st.radio('Display theme',['Light','Dark'],index=0,horizontal=True,key='display_theme',
+                        label_visibility='collapsed',
+                        help='Light follows your device theme. Dark uses black and red for nighttime observing.')
 night_mode=appearance=='Dark'
 st.markdown("""
 <style>
+/* Compact header with the appearance control below the upper-right view link. */
+[data-testid="stMainBlockContainer"] {padding-top:3rem;}
+.st-key-theme_controls {
+ position:fixed; top:calc(2.75rem + env(safe-area-inset-top, 0px));
+ right:calc(.75rem + env(safe-area-inset-right, 0px));
+ z-index:1000001; width:max-content !important;
+ background:var(--dw-background); padding:.25rem .5rem; border-radius:4px;
+}
+.st-key-theme_controls [role="radiogroup"] {justify-content:flex-end;}
+@media(max-width:600px) {
+ [data-testid="stMainBlockContainer"] {padding-top:6rem !important;}
+}
 /* The app supplies its own two-choice appearance control. */
 #MainMenu,[data-testid="stMainMenu"] {display:none;}
 .stApp {
@@ -82,7 +98,7 @@ st.markdown(
 )
 if mobile:
     st.markdown("""<style>
-[data-testid="stMainBlockContainer"] {padding:1rem 1rem 3rem; max-width:1100px;}
+[data-testid="stMainBlockContainer"] {padding:3rem 1rem 3rem; max-width:1100px;}
 [data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stLinkButton"] a {min-height:44px;width:100%;}
 [data-testid="stCheckbox"] label {min-height:44px;align-items:center;}
 [data-testid="stTextInput"] input,[data-testid="stNumberInput"] input {font-size:16px;}
@@ -92,8 +108,6 @@ if mobile:
 [data-testid="stColumn"] {width:100% !important;flex:1 1 100% !important;}
 }
 </style>""",unsafe_allow_html=True)
-st.title('🔭 Darkwave Astro Suite')
-st.caption('Plan your night • Record your sessions • Review your images')
 modules = ['Overview', 'Planner', 'Sessions', 'Logger']
 requested_module = st.query_params.get('module', 'Overview')
 if 'suite_module' not in st.session_state:
