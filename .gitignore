@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+data/*.sqlite*
+data/*api_key*
+data/settings.json
+data/suite.json
+data/logs/
+data/runtime/
+logger/logs/
+logger/private/
+logger/orbital_data/
+logger/*_config.json
+logger/config.json
+*.exe
+*.key
+*.pem

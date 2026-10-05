@@ -1,0 +1,9 @@
+streamlit>=1.40,<2
+astropy>=6,<9
+pandas>=2,<4
+numpy>=2.0,<3
+requests>=2.31,<3
+tzdata>=2024.1
+reportlab>=4,<5
+sgp4==2.27
+cryptography
