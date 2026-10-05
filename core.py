@@ -188,6 +188,15 @@ def parse_forecast(data):
 def forecast(key, lat, lon):
     if not key.strip():
         raise ValueError('Enter your Astrospheric API key.')
+    from logger.shared_weather import cached_response
+    data, retrieved = cached_response('astro', lat, lon, key, lambda: request_forecast(key, lat, lon),
+                                      directory=DATA / 'runtime', validate=parse_forecast,
+                                      when=datetime.now(timezone.utc))
+    frame, metadata = parse_forecast(data)
+    return frame, {**metadata, 'suite_retrieved_utc': retrieved}
+
+
+def request_forecast(key, lat, lon):
     r = requests.post('https://v2-api-public.astrospheric.com/api/GetForecastData',
                       json={'APIKey':key.strip(),'Latitude':lat,'Longitude':lon,
                             'Variables':FORECAST_VARIABLES,'ForecastLength':72}, timeout=45)
@@ -199,7 +208,8 @@ def forecast(key, lat, lon):
     if isinstance(data, dict) and data.get('ErrorInfo'):
         raise ValueError(str(data['ErrorInfo']))
     r.raise_for_status()
-    return parse_forecast(data)
+    # Normalize serialized JSON before storing the shared response.
+    return parse_forecast(data)[1]
 
 
 def remember_api_key(key, directory=DATA):

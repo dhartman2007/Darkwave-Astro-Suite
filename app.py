@@ -394,7 +394,7 @@ with export_plan:
                 try:
                     pdf_weather,metadata=forecast(api_key,lat,lon)
                     st.session_state['weather']=(lat,lon,pdf_weather,metadata)
-                    weather_note=''
+                    weather_note='Astrospheric model forecast · shared snapshot retrieved (UTC): ' + metadata['suite_retrieved_utc']
                 except Exception as error:
                     weather_note=f'Astrospheric forecast unavailable: {error}'
                     st.warning(weather_note)
@@ -427,6 +427,8 @@ if st.session_state.get('explore_target') not in options:
     st.session_state['explore_target'] = options[0]
 name=st.selectbox('Explore target',options,key='explore_target',format_func=lambda n:df.loc[df.Name==n,'label'].iloc[0])
 row=df[df.Name==name].iloc[0]
+from suite_views import planner_session_history
+planner_session_history(name, tz)
 advice=guidance(row,dates,lat,lon,tz,minimum,moon_sep,south,fov_long,fov_short)
 with st.expander('SeeStar suitability, Moon impact and imaging time',expanded=True):
     st.write(f'**SeeStar suitability: {advice["rating"]}**')
@@ -498,6 +500,7 @@ if api_key:
         wlat,wlon,weather,meta=st.session_state['weather']
         if (wlat,wlon)==(lat,lon) and not weather.empty:
             st.subheader('Astrospheric forecast')
+            st.caption('Shared model snapshot retrieved (UTC): ' + meta.get('suite_retrieved_utc', 'unavailable'))
             weather=forecast_us_units(weather)
             weather.index=pd.to_datetime(weather.index,utc=True).tz_convert(tz)
             if mobile or night_mode:

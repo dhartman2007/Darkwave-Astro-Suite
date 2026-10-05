@@ -1,7 +1,8 @@
 # Darkwave Astro Suite
 
 One local browser application combining the Target Planner and SeeStar Logger.
-Use **Overview**, **Planner**, **Sessions**, and **Logger** across the top. The
+Use **Overview**, **Planner**, **Sessions**, and **Logger** in the left navigation
+(above the content on mobile). The
 desktop/mobile switch and black/red night display apply to every workspace.
 
 ## Get the suite
@@ -11,15 +12,15 @@ from `dhartman2007/Astrophotography-Planner` at commit
 `6254235848faee41c5a991b97b44259a3d399493`. The original Planner and
 SeeStar Logger repositories remain separate. See `UPSTREAM.md` for provenance.
 
-Until the import pull request is merged, clone its branch in PowerShell 7:
+To try the integrated layout and session-review milestone, clone the test branch:
 
 ```powershell
-git clone --branch codex/import-suite https://github.com/dhartman2007/Darkwave-Astro-Suite.git
+git clone --branch codex/gui-layout-test https://github.com/dhartman2007/Darkwave-Astro-Suite.git
 Set-Location Darkwave-Astro-Suite
 .\Start_Windows.bat
 ```
 
-After merge, a normal clone uses `main`. This repository is private, so Git must
+The milestone remains on the test branch until accepted. This repository is private, so Git must
 be authenticated with an account that can access it. The bundled `data/NGC.csv`,
 `data/addendum.csv`, and `fonts/` support catalog loading and PDF export.
 Personal databases, settings, API keys, and runtime output are not bundled.
@@ -38,7 +39,7 @@ running Python; a phone browser does not provide access to its own filesystem.
    Save settings, then click **Start collector**. Optional aircraft, satellite
    and JPL checks are disabled until explicitly enabled. JPL requires contact
    email. Provider requests use the existing logger's caching/credit behavior;
-   Planner and Logger forecast caches remain separate.
+   Planner and Logger reuse compatible weather responses through a shared local cache.
 3. Build tonight's target list under **Planner**. Review files, recorded model
    conditions and candidate coverage under **Sessions**. Link a session to its
    catalog target, then explicitly review Imaged / Needs reimage.
@@ -92,15 +93,69 @@ is needed. Back up the Planner data folder and selected Logger logs folder.
 `DARKWAVE_SUITE_DATA` can select a different Planner/suite data directory.
 
 This is a local suite integration. Multi-machine synchronization between the
-NUC and traveling Pi, shared forecast caching, and a unified database migration
-are separate work. Do not synchronize live SQLite files or run two collectors
+NUC and traveling Pi and a unified database migration remain separate work.
+Do not synchronize live SQLite files or run two collectors
 against the same logs folder. Plan and image review do not automatically clear
 Needs reimage, including M31 and NGC869.
+
+## Session review: plan, shoot, review
+
+In **Sessions**, use **Link suggested target** for a folder with exactly one
+catalog match, or **Link all unambiguous sessions** for missing links among the
+latest 500 sessions. Bulk linking skips ambiguous folders and existing links.
+Neither linking action changes Imaged or Needs reimage.
+
+Expand **Link to a catalog target / review imaging status** to review the
+prefilled first imaging date and notes. Existing first dates, notes and personal
+image links are retained; a local session date is supplied only if none exists.
+The notes include recorded model conditions and timestamps, file-activity duration,
+latest observed file count/size and predicted candidate counts. Unchecked or failed
+candidate checks remain unavailable. Enter a personal image link or path if desired.
+**Mark imaged with this session’s conditions** explicitly marks completion;
+**Needs reimage** stays as selected and is never automatically cleared.
+**Save reviewed imaging status** saves the checked status values instead.
+
+A review atomically saves the imaging record, its session link and an additive
+`imaging_session_reviews` snapshot keyed by log-source path, session ID and target.
+Repeated review does not append the same session note twice. Snapshot activity
+lists contain at most the latest 1,000 updates; file totals aggregate all unique
+paths using their latest recorded sizes. These are saved-file statistics, not
+accepted stacked exposure. Existing logger databases remain in place.
+
+The Planner's selected-object view shows linked sessions from the configured log
+source, with status and recorded conditions. Overview compares the selected night's
+plan with sessions starting in its local noon-to-noon observing window.
+
+## Shared model-response cache
+
+The suite and its collector share `data/runtime/weather-cache.sqlite3` (or the
+selected `DARKWAVE_SUITE_DATA` directory). Astrospheric responses are reused for up
+to six hours, and Open-Meteo responses for up to 30 minutes. Provider, exact
+coordinates, credential identity and request schema separate cache entries;
+Astrospheric reuse also requires forecast-hour coverage for the requested time.
+A cross-process transaction prevents simultaneous cache misses from making two
+provider requests. Plaintext API keys are not stored in the cache.
+
+The Planner, collector and newly generated PDF reuse the same eligible Astrospheric
+response; retrieved UTC times remain visible. PDF generation uses a current eligible
+forecast, not a reconstruction of an old session. Historical session snapshots are
+retained separately and are never replaced with a fresh forecast. A refresh within
+the cache lifetime can return the same snapshot. No new weather provider is enabled.
+
+## Home and travel installations
+
+Run one collector per image/log source. Keep separate local log folders for the
+desktop, laptop and Pi unless a deliberate stopped-app transfer is being made.
+Before copying databases, stop collectors and both applications, back up `data/`
+and the selected log folder, and copy only closed files. Source-aware links use
+the absolute log-folder path; moving a log folder changes that identity.
+`DARKWAVE_SUITE_DATA` can choose an alternate data directory. This milestone does
+not implement automatic cross-machine synchronization or conflict resolution.
 
 ## Validation
 
 ```
-python -m pytest -q test_core.py test_suite.py
+python -m pytest -q test_core.py test_suite.py test_workflow.py
 python -m unittest discover -s logger/tests
 ```
 

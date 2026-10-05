@@ -7,6 +7,7 @@ import sqlite3
 import subprocess
 import sys
 import threading
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
@@ -131,6 +132,86 @@ def link_session(logs, session_id, name, data=DATA):
     with sqlite3.connect(Path(data) / 'imaging.sqlite3') as db:
         db.execute('INSERT OR REPLACE INTO session_targets VALUES (?, ?, ?)',
                    (str(Path(logs).resolve()), int(session_id), name))
+
+
+def link_unambiguous(logs, rows, objects, data=DATA):
+    """Only add missing links; never replace a reviewed link or imaging status."""
+    existing = session_links(logs, data)
+    candidates = []
+    for row in rows:
+        matches = target_candidates(row['target_folder'], objects)
+        if row['id'] not in existing and len(matches) == 1:
+            candidates.append((str(Path(logs).resolve()), int(row['id']), matches[0]))
+    with sqlite3.connect(Path(data) / 'imaging.sqlite3') as db:
+        before = db.total_changes
+        db.executemany('INSERT OR IGNORE INTO session_targets VALUES (?,?,?)', candidates)
+        return db.total_changes - before
+
+
+def linked_sessions(logs, rows, name, data=DATA):
+    links = session_links(logs, data)
+    return [row for row in rows if links.get(row['id']) == name]
+
+
+def review_defaults(logs, row, details, existing, zone):
+    """Prepare editable notes without changing either application's database."""
+    start = row.get('start_observed_utc')
+    first = existing.get('first_date') or ''
+    duration = None
+    try:
+        began = datetime.fromisoformat(start.replace('Z', '+00:00'))
+        if not first:
+            first = began.astimezone(ZoneInfo(zone)).date().isoformat()
+        end = row.get('end_estimated_utc') or row.get('last_activity_utc')
+        if end:
+            duration = max(0, (datetime.fromisoformat(end.replace('Z', '+00:00')) - began).total_seconds())
+    except (AttributeError, TypeError, ValueError):
+        pass
+    source = str(Path(logs).resolve())
+    marker = f'[Session #{row["id"]} · {source}]'
+    conditions = row.get('conditions') or {}
+    counts = details.get('counts', {})
+    summary = details.get('file_summary', {}).get('rows', [])
+    file_summary = summary[0] if summary else None
+    lines = [marker, f'Target folder: {row["target_folder"]}',
+             f'Start (UTC): {start or "unavailable"}', f'Status: {row.get("status", "unavailable")}',
+             'Timing basis: file activity, not accepted stacked exposure.',
+             f'Estimated activity duration: {duration / 60:.1f} minutes' if duration is not None else 'Estimated activity duration: unavailable',
+             'Recorded model conditions (not local sensor measurements): ' +
+             (json.dumps(conditions, ensure_ascii=False, sort_keys=True) if conditions else 'unavailable'),
+             'Predicted candidates (not confirmed detections): ' + ', '.join(
+                 f'{name}: {"unavailable" if counts.get(name) is None else counts[name]}'
+                 for name in ('aircraft', 'satellites', 'comets', 'asteroids'))]
+    if file_summary:
+        lines.append(f'Files observed: {file_summary["file_count"]}; latest observed total: {file_summary["total_bytes"]} bytes')
+    notes = existing.get('notes') or ''
+    if marker not in notes:
+        notes = (notes.rstrip() + '\n\n' + '\n'.join(lines)).strip()
+    snapshot = dict(source=source, session_id=row['id'], target_folder=row['target_folder'],
+                    start_observed_utc=start, end_estimated_utc=row.get('end_estimated_utc'),
+                    last_activity_utc=row.get('last_activity_utc'), status=row.get('status'),
+                    duration_seconds=duration, timing_basis='file activity estimate',
+                    recorded_model_conditions=conditions, candidate_counts=counts,
+                    file_summary=file_summary,
+                    activity=details.get('activity', {}).get('rows', []), activity_limit=1000)
+    return dict(first_date=first, image_url=existing.get('image_url') or '', notes=notes, snapshot=snapshot)
+
+
+def save_session_review(logs, identity, name, imaged, reimage, first, image, notes, snapshot, data=DATA):
+    """Atomically save explicit imaging review, link and its source-aware snapshot."""
+    if first:
+        datetime.strptime(first, '%Y-%m-%d')
+    Path(data).mkdir(parents=True, exist_ok=True)
+    source = str(Path(logs).resolve())
+    with sqlite3.connect(Path(data) / 'imaging.sqlite3') as db:
+        db.execute('CREATE TABLE IF NOT EXISTS imaging (object TEXT PRIMARY KEY, imaged INTEGER, reimage INTEGER, first_date TEXT, image_url TEXT, notes TEXT)')
+        db.execute('CREATE TABLE IF NOT EXISTS session_targets (source TEXT, session_id INTEGER, object TEXT, PRIMARY KEY(source, session_id))')
+        db.execute('CREATE TABLE IF NOT EXISTS imaging_session_reviews (source TEXT, session_id INTEGER, object TEXT, snapshot_json TEXT, PRIMARY KEY(source,session_id,object))')
+        db.execute('INSERT OR REPLACE INTO imaging VALUES (?,?,?,?,?,?)',
+                   (name, int(imaged), int(reimage), first, image, notes))
+        db.execute('INSERT OR REPLACE INTO session_targets VALUES (?,?,?)', (source, int(identity), name))
+        db.execute('INSERT OR REPLACE INTO imaging_session_reviews VALUES (?,?,?,?)',
+                   (source, int(identity), name, json.dumps(snapshot, ensure_ascii=False)))
 
 
 def import_logger_config(source, data=DATA):

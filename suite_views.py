@@ -1,14 +1,15 @@
 """Streamlit views for the integrated observing workflow."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import sys
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
-from core import catalog, planned_targets, records, save
+from core import catalog, planned_targets, records
 from suite import (Collector, LOGGER, import_logger_config, link_session,
-                   read_suite, save_suite, session_links, target_candidates)
+                   read_suite, save_suite, session_links, target_candidates,
+                   linked_sessions, link_unambiguous, review_defaults, save_session_review)
 
 sys.path.insert(0, str(LOGGER))
 from web_viewer import sessions, detail
@@ -41,12 +42,34 @@ def overview(day, zone):
     st.caption('Session history shows up to the latest 500 sessions. Collector status refers to the process started here.')
     st.markdown('Choose **Planner** to build your night, **Sessions** to review captured files and possible crossings, or **Logger** to start collection.')
     planned = sorted(planned_targets(day))
-    if planned:
-        st.write('Tonight’s saved targets: ' + ', '.join(planned))
-    if result['sessions']:
-        st.dataframe(pd.DataFrame(localize(result['sessions'][:10], zone)).drop(columns=['conditions'], errors='ignore'), hide_index=True, width='stretch')
-    else:
-        st.info('No sessions found. Point the suite at your existing logs or start the collector.')
+    links = session_links(config['logs'])
+    tonight = []
+    for row in localize(result['sessions'], zone):
+        try:
+            local = datetime.fromisoformat(row['start_observed_local'])
+            night = local.date() - timedelta(days=1 if local.hour < 12 else 0)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if night == day:
+            tonight.append({'Session': row['id'], 'Target': links.get(row['id']) or row['target_folder'],
+                            'Status': row['status'], 'Start': row['start_observed_local']})
+    plan_panel, sessions_panel = st.columns(2)
+    with plan_panel:
+        with st.container(border=True):
+            st.subheader('Tonight’s plan')
+            if planned:
+                for name in planned:
+                    matching = [row for row in tonight if row['Target'] == name]
+                    st.write(f'**{name}** · ' + (matching[0]['Status'] if matching else 'No linked session this night'))
+            else:
+                st.info('No targets selected for this night.')
+    with sessions_panel:
+        with st.container(border=True):
+            st.subheader('Sessions this night')
+            if tonight:
+                st.dataframe(pd.DataFrame(tonight), hide_index=True, width='stretch')
+            else:
+                st.info('No sessions recorded for the selected observing night.')
     st.caption('Forecasts are model predictions. Recorded weather is currently Open-Meteo model conditions; all-sky and local sensor measurements are future integrations.')
 
 
@@ -120,6 +143,12 @@ def session_history(zone):
     if not rows:
         st.info(response['status'])
         return
+    objects = catalog()
+    unlinked = [row for row in rows if row['id'] not in session_links(config['logs'])
+                and len(target_candidates(row['target_folder'], objects)) == 1]
+    if st.button(f'Link all unambiguous sessions ({len(unlinked)})', disabled=not unlinked):
+        count = link_unambiguous(config['logs'], rows, objects)
+        st.success(f'{count} sessions linked. Imaging status is unchanged.')
     links = session_links(config['logs'])
     query = st.text_input('Filter session target or status')
     selected_rows = [row for row in rows if query.casefold() in (row['target_folder'] + ' ' + row['status']).casefold()]
@@ -149,9 +178,14 @@ def session_history(zone):
             if section['rows']:
                 st.dataframe(pd.DataFrame(localize(section['rows'], zone)), hide_index=True, width='stretch')
     with st.expander('Link to a catalog target / review imaging status'):
-        objects = catalog()
         suggestions = target_candidates(row['target_folder'], objects)
         current = links.get(identity)
+        if current is None and len(suggestions) == 1:
+            if st.button(f'Link suggested target: {suggestions[0]}', key=f'suggest-link-{identity}'):
+                link_session(config['logs'], identity, suggestions[0])
+                st.rerun()
+        elif len(suggestions) > 1:
+            st.warning('Folder matches multiple catalog targets. Choose the correct object below.')
         names = sorted(set(objects.Name))
         default = current if current in names else (suggestions[0] if suggestions else names[0])
         name = st.selectbox('Catalog object', names, index=names.index(default), key=f'catalog-{identity}')
@@ -161,18 +195,50 @@ def session_history(zone):
         imaging = records()
         matches = imaging[imaging.object == name]
         existing = matches.iloc[0].to_dict() if not matches.empty else {}
-        with st.form(f'imaging-review-{identity}-{name}'):
+        defaults = review_defaults(config['logs'], row, result, existing, zone)
+        st.caption('Review the prefilled session date and notes before saving. Mark imaged does not clear Needs reimage; uncheck that field explicitly when appropriate.')
+        revision_key = f'review-revision-{identity}-{name}'
+        message = st.session_state.pop('session_review_message', None)
+        if message:
+            st.success(message)
+        with st.form(f'imaging-review-{identity}-{name}-{st.session_state.get(revision_key, 0)}'):
             imaged = st.checkbox('Imaged', bool(existing.get('imaged', False)))
             reimage = st.checkbox('Needs reimage', bool(existing.get('reimage', False)))
-            first = st.text_input('First imaging date (YYYY-MM-DD)', existing.get('first_date') or '')
-            image = st.text_input('Personal image link', existing.get('image_url') or '')
-            notes = st.text_area('Notes', existing.get('notes') or '')
-            if st.form_submit_button('Save reviewed imaging status'):
+            first = st.text_input('First imaging date (YYYY-MM-DD)', defaults['first_date'])
+            image = st.text_input('Personal image link or path', defaults['image_url'])
+            notes = st.text_area('Notes', defaults['notes'], height=220)
+            mark = st.form_submit_button('Mark imaged with this session’s conditions')
+            reviewed = st.form_submit_button('Save reviewed imaging status')
+            if mark or reviewed:
                 try:
                     if first:
                         datetime.strptime(first, '%Y-%m-%d')
-                    save(name, imaged, reimage, first, image, notes)
-                    link_session(config['logs'], identity, name)
-                    st.success('Imaging record and session link saved.')
+                    save_session_review(config['logs'], identity, name, True if mark else imaged,
+                                        reimage, first, image, notes, defaults['snapshot'])
+                    st.session_state[revision_key] = st.session_state.get(revision_key, 0) + 1
+                    st.session_state['session_review_message'] = 'Imaging record, session link and recorded snapshot saved.'
+                    st.rerun()
                 except ValueError:
                     st.error('Use YYYY-MM-DD for the first imaging date.')
+
+
+def planner_session_history(name, zone):
+    """Show current log-source history for the selected catalog target."""
+    config = read_suite()
+    response = sessions(config['logs'])
+    rows = linked_sessions(config['logs'], response['sessions'], name)
+    with st.expander(f'Linked observing sessions ({len(rows)})', expanded=bool(rows)):
+        st.caption('Current log source; searches the latest 500 sessions. Status reflects file activity, not image quality.')
+        if not rows:
+            st.info('No linked sessions found. Link a session under Sessions to show it here.')
+            return
+        table = [{'Session': row['id'], 'Folder': row['target_folder'],
+                  'Start': row.get('start_observed_local', ''), 'Status': row['status'],
+                  'File updates': row.get('file_updates', 0)} for row in localize(rows, zone)]
+        st.dataframe(pd.DataFrame(table), hide_index=True, width='stretch')
+        for row in rows[:5]:
+            with st.expander(f'Session #{row["id"]} · {row["status"]}'):
+                st.json(row.get('conditions') or {})
+                details = detail(config['logs'], row['id'])
+                st.write('Predicted candidates: ' + ', '.join(
+                    f'{key}: {"N/A" if value is None else value}' for key, value in details['counts'].items()))

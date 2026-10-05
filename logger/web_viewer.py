@@ -53,6 +53,10 @@ def detail(directory,session_id):
     counts['comets']=sum(comet(o['name']) for o in objects) if available else None
     counts['asteroids']=sum(not comet(o['name']) for o in objects) if available else None
     result['counts']=counts
+    summary,status=read(directory,'file_sessions.sqlite',
+        'SELECT count(*) AS file_count, coalesce(sum(size_bytes),0) AS total_bytes FROM activity '
+        'WHERE id IN (SELECT max(id) FROM activity WHERE session_id=? GROUP BY relative_path)', (session_id,))
+    result['file_summary']={'rows':summary,'status':status,'limit':1}
     return result
 
 class Handler(BaseHTTPRequestHandler):

@@ -71,6 +71,8 @@ def build_plan_pdf(catalog, results, dates, dark, day, place, lat, lon, tz, mini
     darkness_text=f'{darkness[0]:%m/%d %I:%M %p} to {darkness[-1]+pd.Timedelta(minutes=5):%m/%d %I:%M %p}' if len(darkness) else 'No astronomical darkness'
     story.extend([para("Darkwave - Night Overview",'Title'),para(f'{day.isoformat()} | {place} | {tz}', 'Caption'),Spacer(1,10),para('Sun, Moon and darkness','Heading2'),table(night_summary(dates,lat,lon,tz)),Spacer(1,8),para('Times cover noon on the selected date through noon the following day. Rise/set times are approximate, interpolated from 5-minute samples with standard horizon corrections; terrain is not included.', 'Caption'),para('Astrospheric hourly forecast','Heading2')])
     if weather is not None and not weather.empty:
+        if weather_note:
+            story.append(para(weather_note, 'Caption'))
         forecast=forecast_us_units(weather)
         forecast.index=pd.to_datetime(forecast.index,utc=True).tz_convert(tz)
         start=local[0]+pd.Timedelta(hours=6)

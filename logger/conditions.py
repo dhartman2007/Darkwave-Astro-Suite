@@ -11,6 +11,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from debug_log import event, response_summary
+from shared_weather import ASTRO_VARIABLES, cached_response
 
 ROOT = Path(__file__).resolve().parent
 
@@ -83,7 +84,7 @@ def astro_hour(data, when):
     for variable in ('Cloud', 'Seeing', 'Transparency'):
         candidates = []
         hourly = data.get('HourlyForecast')
-        entries = hourly if isinstance(hourly, list) else data.get(variable) or []
+        entries = hourly if isinstance(hourly, list) else (hourly if isinstance(hourly, dict) else data).get(variable) or []
         for item in entries:
             try:
                 value = item.get(variable) if isinstance(hourly, list) else item.get('Value')
@@ -93,7 +94,8 @@ def astro_hour(data, when):
                         value = value.get('ActualValue')
                 if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
                     continue
-                forecast = datetime.fromisoformat(item['UTCForecastHour'].replace('Z', '+00:00'))
+                stamp = item.get('UTCForecastHour') or item.get('ForecastTime') or item.get('Time')
+                forecast = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
                 distance = abs((forecast - when).total_seconds())
                 if distance <= 5400:
                     candidates.append((distance, item['UTCForecastHour'], value))
@@ -114,7 +116,6 @@ class Conditions:
         self.results = queue.Queue()
         self.pending = set()
         self.last_requested = {}
-        self.cache = {}
         self.thread = threading.Thread(target=self.worker, daemon=True)
         self.thread.start()
 
@@ -139,13 +140,11 @@ class Conditions:
         event('conditions_queued', session_id=session_id, observed_utc=now,
               latitude=location['latitude'], longitude=location['longitude'], location_source=location['source'])
 
-    def fetch(self, provider, location, key=None):
-        cache_key = (provider, location['latitude'], location['longitude'])
-        cached = self.cache.get(cache_key)
-        lifetime = 1800 if provider == 'weather' else 21600
-        if cached and time.monotonic() - cached[0] < lifetime:
-            event('forecast_cache_hit', provider=provider, retrieved_utc=cached[2], age_seconds=round(time.monotonic()-cached[0], 1))
-            return cached[1], cached[2]
+    def fetch(self, provider, location, key=None, when=None):
+        return cached_response(provider, location['latitude'], location['longitude'], key or '',
+                               lambda: self.request(provider, location, key), when=when)
+
+    def request(self, provider, location, key=None):
         if provider == 'weather':
             query = urllib.parse.urlencode({'latitude': location['latitude'], 'longitude': location['longitude'],
                 'current': 'temperature_2m,relative_humidity_2m,cloud_cover,wind_speed_10m,precipitation',
@@ -154,10 +153,8 @@ class Conditions:
         else:
             data = request_json('https://v2-api-public.astrospheric.com/api/GetForecastData',
                 {'APIKey': key, 'Latitude': location['latitude'], 'Longitude': location['longitude'],
-                 'Variables': ['Cloud', 'Seeing', 'Transparency']})
-        retrieved = datetime.now(timezone.utc).isoformat()
-        self.cache[cache_key] = (time.monotonic(), data, retrieved)
-        return data, retrieved
+                 'Variables': ASTRO_VARIABLES, 'ForecastLength': 72})
+        return data
 
     def worker(self):
         while True:
@@ -188,7 +185,7 @@ class Conditions:
                     record['astrospheric_status'] = 'API key not configured'
                     event('astrospheric_key_missing', session_id=job_key[0])
                 else:
-                    data, retrieved = self.fetch('astro', location, key)
+                    data, retrieved = self.fetch('astro', location, key, when=datetime.fromisoformat(observed))
                     selected = astro_hour(data, datetime.fromisoformat(observed))
                     record['astrospheric_status'] = 'hourly forecast; provider raw values' if selected else 'no matching forecast hour'
                     record['astrospheric_retrieved_utc'] = retrieved

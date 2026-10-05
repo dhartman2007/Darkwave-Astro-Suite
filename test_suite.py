@@ -139,6 +139,25 @@ from suite import session_links
 assert session_links(data / 'logs') == {1: 'NGC0224'}
 from core import records
 assert records().empty  # Linking a session cannot mark it completed.
+from core import save
+save('NGC0224', False, True, '2026-09-01', 'C:/Images/M31.fit', 'Keep my original note')
+review = AppTest.from_file('app.py', default_timeout=30)
+review.query_params['module'] = 'Sessions'
+review.run()
+assert not review.exception, [x.message for x in review.exception]
+assert next(t for t in review.text_area if t.label == 'Notes').value.startswith('Keep my original note')
+assert next(t for t in review.text_input if t.label.startswith('First imaging date')).value == '2026-09-01'
+next(b for b in review.button if b.label == 'Mark imaged with this session’s conditions').click().run()
+assert not review.exception, [x.message for x in review.exception]
+record = records().iloc[0]
+assert bool(record.imaged) and bool(record.reimage)
+assert record.image_url == 'C:/Images/M31.fit'
+assert 'aircraft: unavailable' in record.notes
+app.radio(key='suite_module').set_value('Planner').run()
+assert not app.exception, [x.message for x in app.exception]
+app.selectbox(key='explore_target').set_value('NGC0224').run()
+assert not app.exception, [x.message for x in app.exception]
+assert any('Linked observing sessions (1)' == expander.label for expander in app.expander)
 for module in ('Overview', 'Planner', 'Sessions', 'Logger'):
     mobile = AppTest.from_file('app.py', default_timeout=30)
     mobile.query_params['view'] = 'mobile'
