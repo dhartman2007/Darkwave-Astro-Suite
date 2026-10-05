@@ -9,13 +9,29 @@ from imaging_guidance import guidance
 from core import catalog, plan, track, records, save, image_urls, forecast, DATA, remember_api_key, remembered_api_key, forecast_us_units, planned_targets, set_planned
 mobile = st.query_params.get('view','desktop') == 'mobile'
 st.set_page_config(page_title='Darkwave Astro Suite',page_icon='🔭',layout='wide',initial_sidebar_state='collapsed' if mobile else 'auto')
+modules = ['Overview', 'Planner', 'Sessions', 'Logger']
+requested_module = st.query_params.get('module', 'Overview')
+if 'suite_module' not in st.session_state:
+    st.session_state.suite_module = requested_module if requested_module in modules else 'Overview'
+navigation = st.container() if mobile else st.sidebar
+with navigation:
+    if not mobile:
+        st.markdown('### Darkwave Astro Suite')
+        st.caption('Plan • Record • Review')
+    module = st.radio('Workspace', modules, key='suite_module',
+                      horizontal=mobile, label_visibility='collapsed')
+st.query_params['module'] = module
+page_titles = {'Overview': 'Your observing workspace', 'Planner': 'Plan your night',
+               'Sessions': 'Review your sessions', 'Logger': 'Collect session activity'}
 with st.container(key='suite_heading'):
-    st.title('🔭 Darkwave Astro Suite')
-    st.caption('Plan your night • Record your sessions • Review your images')
-with st.container(key='theme_controls'):
-    appearance=st.radio('Display theme',['Light','Dark'],index=0,horizontal=True,key='display_theme',
-                        label_visibility='collapsed',
-                        help='Light follows your device theme. Dark uses black and red for nighttime observing.')
+    heading, controls = st.columns([3, 1])
+    with heading:
+        st.title(page_titles[module])
+        st.caption('Darkwave Astro Suite · Layout preview')
+    with controls:
+        appearance=st.radio('Display theme',['Light','Dark'],index=0,horizontal=True,key='display_theme',
+                            label_visibility='collapsed',
+                            help='Light follows your device theme. Dark uses black and red for nighttime observing.')
 night_mode=appearance=='Dark'
 st.markdown("""
 <style>
@@ -27,26 +43,19 @@ st.markdown("""
 .st-key-suite_heading h1 {font-size:2rem;padding-top:.2rem;padding-bottom:.15rem;line-height:1.3;}
 .st-key-suite_heading p {margin-bottom:0;}
 /* Style-only elements must not reserve empty rows in the header. */
-[data-testid="stElementContainer"]:has([data-testid="stMarkdownContainer"] > style:only-child) {display:none;}
+
 [data-testid="stElementContainer"]:has(.dw-view-switch) {height:0;min-height:0;}
 .st-key-theme_controls [data-testid="stRadio"] {margin-bottom:0;}
-.st-key-theme_controls {
- position:fixed; top:calc(2.1rem + env(safe-area-inset-top, 0px));
- right:calc(.75rem + env(safe-area-inset-right, 0px));
- z-index:1000001; width:max-content !important;
- background:var(--dw-background); padding:0 .35rem; border-radius:4px;
-}
-.st-key-theme_controls [role="radiogroup"] {justify-content:flex-end;}
 @media(max-width:600px) {
  [data-testid="stMainBlockContainer"] {padding-top:4.5rem !important;}
 }
 /* The app supplies its own two-choice appearance control. */
 #MainMenu,[data-testid="stMainMenu"] {display:none;}
 .stApp {
- --dw-background: #fafafa; --dw-surface: #f0f2f6; --dw-text: #17202e; --dw-border: #c8cdd6;
+ --dw-background: #f5f7fb; --dw-surface: #ffffff; --dw-text: #17202e; --dw-border: #d5dfeb;
 }
 @media(prefers-color-scheme:dark) {
- .stApp {--dw-background:#0e1117;--dw-surface:#262730;--dw-text:#fafafa;--dw-border:#555862;}
+ .stApp {--dw-background:#080f19;--dw-surface:#0e1b2a;--dw-text:#edf3fc;--dw-border:#24364b;}
 }
 </style>
 """,unsafe_allow_html=True)
@@ -118,13 +127,6 @@ if mobile:
 [data-testid="stColumn"] {width:100% !important;flex:1 1 100% !important;}
 }
 </style>""",unsafe_allow_html=True)
-modules = ['Overview', 'Planner', 'Sessions', 'Logger']
-requested_module = st.query_params.get('module', 'Overview')
-if 'suite_module' not in st.session_state:
-    st.session_state.suite_module = requested_module if requested_module in modules else 'Overview'
-module = st.radio('Workspace', modules, key='suite_module',
-                  horizontal=True, label_visibility='collapsed')
-st.query_params['module'] = module
 OBJECT_TYPE_LABELS = {
     "*": "Star",
     "**": "Double star",
@@ -149,9 +151,30 @@ OBJECT_TYPE_LABELS = {
     "Other": "Other classification"
 }
 
+
+st.markdown("""<style>
+[data-testid="stSidebar"] {border-right:1px solid var(--dw-border);}
+[data-testid="stSidebar"] [role="radiogroup"] {gap:.35rem;}
+[data-testid="stSidebar"] [role="radiogroup"] label {
+ padding:.55rem .75rem;border-radius:7px;width:100%;
+}
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+ background:var(--dw-surface);outline:1px solid var(--dw-border);
+}
+[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlockBorderWrapper"] > div,
+[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"]:is(.st-key-night_plan,.st-key-target_catalog) {
+ background:var(--dw-surface);border-radius:10px;
+}
+[data-testid="stDataFrame"] {border-radius:8px;overflow:hidden;}
+.st-key-suite_heading {padding-bottom:.5rem;border-bottom:1px solid var(--dw-border);}
+@media(max-width:600px) {
+ .st-key-suite_heading h1 {font-size:1.65rem;}
+}
+</style>""",unsafe_allow_html=True)
+
 settings_file=DATA/'settings.json'
 settings=json.loads(settings_file.read_text()) if settings_file.exists() else {}
-settings_panel=st.expander('Location, date & observing settings') if mobile else st.sidebar
+settings_panel=st.expander('Location, date & observing settings') if mobile else st.sidebar.expander('Location & observing settings', expanded=False)
 with settings_panel:
     st.header('Observing location')
     place=st.text_input('Location name',settings.get('place','Foley, Alabama'))
@@ -247,36 +270,51 @@ def mobile_plan_change(target,key):
     set_planned(day,target,st.session_state[key])
     st.session_state['table_revision']=st.session_state.get('table_revision',0)+1
 
-if mobile or night_mode:
-    st.subheader('Targets for this night')
-    page_count=max(1,(len(shown)+11)//12)
-    if st.session_state.get('mobile_page',1)>page_count:
-        st.session_state['mobile_page']=1
-    page=st.number_input('Target page',1,page_count,key='mobile_page')
-    st.caption(f'{len(shown)} targets · 12 per page')
-    page_rows=shown.iloc[(page-1)*12:page*12]
-    for offset in range(0,len(page_rows),2):
-        for column,(_,item) in zip(st.columns(2),page_rows.iloc[offset:offset+2].iterrows()):
-            with column:
-                with st.container(border=True):
-                    st.markdown(f'**{item.Target}**')
-                    st.caption(OBJECT_TYPE_LABELS.get(item.Type,item.Type))
-                    st.write(f'**Best window:** {item["Best window"]}')
-                    st.write(f'**Usable:** {item.Hours:.2f} h · **Peak:** {item["Peak °"]}°')
-                    st.write(f'**Moon-free:** {item["Moon-free h"]:.2f} h')
-                    key=f'mobile_plan_{day.isoformat()}_{item.Name}'
-                    st.session_state[key]=item.Name in planned
-                    st.checkbox('Tonight’s plan',key=key,on_change=mobile_plan_change,args=(item.Name,key))
-                    st.button('Explore target',key=f'mobile_explore_{item.Name}',on_click=mobile_choose_target,args=(item.Name,))
-else:
-    st.data_editor(shown.drop(columns='Name').style.set_properties(**{'color':'#d74747','background-color':'#000000'}) if night_mode else shown.drop(columns='Name'),hide_index=True,use_container_width=True,
-                   key=table_key,on_change=edit_target_table,
-                   disabled=[column for column in shown.columns if column not in ('Name', 'Explore', 'Tonight’s plan')],
-                   column_config={'Type': st.column_config.TextColumn('Type',help='Object classification code. Expand Legend below for the full meanings.'),
-                                  'Explore': st.column_config.CheckboxColumn('Explore',help='Check to show this target’s details below.'),
-                                  'Tonight’s plan': st.column_config.CheckboxColumn('Tonight’s plan',help='Add or remove this target for the selected date.')})
-    st.caption('Check Tonight’s plan to add or remove a target. Check Explore to display its details below.')
-    
+catalog_panel, plan_panel = (st.container(), st.container()) if mobile else st.columns([3, 1.25])
+with plan_panel:
+    with st.container(border=True, key='night_plan'):
+        st.subheader('Tonight’s plan')
+        st.caption(f'{day.isoformat()} · {len(planned)} selected targets')
+        if planned:
+            selected_catalog = df[df.Name.isin(planned)]
+            for _, selected in selected_catalog.iterrows():
+                st.markdown(f'**{selected.label}**')
+            st.caption('Generate the PDF below to include observing windows and guidance.')
+        else:
+            st.info('Check Tonight’s plan beside a target to add it.')
+with catalog_panel:
+    with st.container(border=True, key='target_catalog'):
+        st.subheader('Target catalog')
+        if mobile or night_mode:
+            st.subheader('Targets for this night')
+            page_count=max(1,(len(shown)+11)//12)
+            if st.session_state.get('mobile_page',1)>page_count:
+                st.session_state['mobile_page']=1
+            page=st.number_input('Target page',1,page_count,key='mobile_page')
+            st.caption(f'{len(shown)} targets · 12 per page')
+            page_rows=shown.iloc[(page-1)*12:page*12]
+            for offset in range(0,len(page_rows),2):
+                for column,(_,item) in zip(st.columns(2),page_rows.iloc[offset:offset+2].iterrows()):
+                    with column:
+                        with st.container(border=True):
+                            st.markdown(f'**{item.Target}**')
+                            st.caption(OBJECT_TYPE_LABELS.get(item.Type,item.Type))
+                            st.write(f'**Best window:** {item["Best window"]}')
+                            st.write(f'**Usable:** {item.Hours:.2f} h · **Peak:** {item["Peak °"]}°')
+                            st.write(f'**Moon-free:** {item["Moon-free h"]:.2f} h')
+                            key=f'mobile_plan_{day.isoformat()}_{item.Name}'
+                            st.session_state[key]=item.Name in planned
+                            st.checkbox('Tonight’s plan',key=key,on_change=mobile_plan_change,args=(item.Name,key))
+                            st.button('Explore target',key=f'mobile_explore_{item.Name}',on_click=mobile_choose_target,args=(item.Name,))
+        else:
+            st.data_editor(shown.drop(columns='Name').style.set_properties(**{'color':'#d74747','background-color':'#000000'}) if night_mode else shown.drop(columns='Name'),hide_index=True,use_container_width=True,
+                           key=table_key,on_change=edit_target_table,
+                           disabled=[column for column in shown.columns if column not in ('Name', 'Explore', 'Tonight’s plan')],
+                           column_config={'Type': st.column_config.TextColumn('Type',help='Object classification code. Expand Legend below for the full meanings.'),
+                                          'Explore': st.column_config.CheckboxColumn('Explore',help='Check to show this target’s details below.'),
+                                          'Tonight’s plan': st.column_config.CheckboxColumn('Tonight’s plan',help='Add or remove this target for the selected date.')})
+            st.caption('Check Tonight’s plan to add or remove a target. Check Explore to display its details below.')
+            
 with st.expander('Legend — object types and observing columns'):
     st.markdown('**Object type codes**')
     st.table(pd.DataFrame(
