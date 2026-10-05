@@ -44,7 +44,7 @@ def overview(day, zone):
     if planned:
         st.write('Tonight’s saved targets: ' + ', '.join(planned))
     if result['sessions']:
-        st.dataframe(pd.DataFrame(localize(result['sessions'][:10], zone)).drop(columns=['conditions'], errors='ignore'), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(localize(result['sessions'][:10], zone)).drop(columns=['conditions'], errors='ignore'), hide_index=True, width='stretch')
     else:
         st.info('No sessions found. Point the suite at your existing logs or start the collector.')
     st.caption('Forecasts are model predictions. Recorded weather is currently Open-Meteo model conditions; all-sky and local sensor measurements are future integrations.')
@@ -129,7 +129,7 @@ def session_history(zone):
     table = [{**{key: value for key, value in row.items() if key != 'conditions'},
               'catalog_object': links.get(row['id'], '')} for row in selected_rows]
     frame = pd.DataFrame(table)
-    st.dataframe(frame, hide_index=True, use_container_width=True)
+    st.dataframe(frame, hide_index=True, width='stretch')
     st.download_button('Export displayed sessions CSV', frame.to_csv(index=False).encode('utf-8'), 'darkwave-sessions.csv', 'text/csv')
     identity = st.selectbox('Inspect session', [r['id'] for r in selected_rows],
                             format_func=lambda value: next(f"#{r['id']} · {r['target_folder']} · {r.get('start_observed_local', '')}" for r in selected_rows if r['id'] == value))
@@ -147,7 +147,7 @@ def session_history(zone):
         with st.expander(name.replace('_', ' ').title()):
             st.caption(f"{section['status']} · latest {section['limit']} rows maximum")
             if section['rows']:
-                st.dataframe(pd.DataFrame(localize(section['rows'], zone)), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame(localize(section['rows'], zone)), hide_index=True, width='stretch')
     with st.expander('Link to a catalog target / review imaging status'):
         objects = catalog()
         suggestions = target_candidates(row['target_folder'], objects)
