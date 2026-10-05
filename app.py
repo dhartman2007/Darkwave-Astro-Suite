@@ -20,10 +20,11 @@ night_mode=appearance=='Dark'
 st.markdown("""
 <style>
 /* Compact header with the appearance control below the upper-right view link. */
-[data-testid="stMainBlockContainer"] {padding-top:2.5rem;}
+[data-testid="stHeader"] {height:2.5rem;}
+[data-testid="stMainBlockContainer"] {padding-top:3.25rem;}
 [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {gap:.6rem;}
 .st-key-suite_heading [data-testid="stVerticalBlock"] {gap:0;}
-.st-key-suite_heading h1 {padding-top:0;padding-bottom:.15rem;line-height:1.15;}
+.st-key-suite_heading h1 {font-size:2rem;padding-top:.2rem;padding-bottom:.15rem;line-height:1.3;}
 .st-key-suite_heading p {margin-bottom:0;}
 /* Style-only elements must not reserve empty rows in the header. */
 [data-testid="stElementContainer"]:has([data-testid="stMarkdownContainer"] > style:only-child) {display:none;}
@@ -107,7 +108,7 @@ st.markdown(
 )
 if mobile:
     st.markdown("""<style>
-[data-testid="stMainBlockContainer"] {padding:2.5rem 1rem 3rem; max-width:1100px;}
+[data-testid="stMainBlockContainer"] {padding:3.25rem 1rem 3rem; max-width:1100px;}
 [data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stLinkButton"] a {min-height:44px;width:100%;}
 [data-testid="stCheckbox"] label {min-height:44px;align-items:center;}
 [data-testid="stTextInput"] input,[data-testid="stNumberInput"] input {font-size:16px;}
