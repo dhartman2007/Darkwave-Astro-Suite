@@ -8,7 +8,7 @@ from plan_pdf import build_plan_pdf
 from imaging_guidance import guidance
 from core import catalog, plan, track, records, save, image_urls, forecast, DATA, remember_api_key, remembered_api_key, forecast_us_units, planned_targets, set_planned
 mobile = st.query_params.get('view','desktop') == 'mobile'
-st.set_page_config(page_title='Darkwave Astro Suite',page_icon='🔭',layout='wide',initial_sidebar_state='collapsed' if mobile else 'auto')
+st.set_page_config(page_title='Darkwave Astro Suite',page_icon='🔭',layout='wide',initial_sidebar_state='collapsed' if mobile else 'expanded')
 modules = ['Overview', 'Planner', 'Sessions', 'Logger']
 requested_module = st.query_params.get('module', 'Overview')
 if 'suite_module' not in st.session_state:
