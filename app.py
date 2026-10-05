@@ -111,7 +111,14 @@ st.markdown("""<style>
  padding:6px 8px; color:var(--dw-text); background:var(--dw-background);
  text-decoration:underline; border-radius:4px;
 }
-[data-testid="stToolbar"] {right:9rem;}
+/* Keep the toolbar in its native position: it contains the reopen control. */
+[data-testid="stExpandSidebarButton"] {
+ display:flex !important;visibility:visible !important;opacity:1 !important;
+ position:fixed;left:.5rem;top:.5rem;z-index:1000002;
+}
+[data-testid="stExpandSidebarButton"] button {
+ color:var(--dw-text) !important;background:var(--dw-surface) !important;
+}
 .dw-view-switch:focus-visible {outline:2px solid var(--dw-text);outline-offset:2px;}
 </style>""",unsafe_allow_html=True)
 switch_view = 'desktop' if mobile else 'mobile'
@@ -316,7 +323,7 @@ with catalog_panel:
                             st.checkbox('Tonight’s plan',key=key,on_change=mobile_plan_change,args=(item.Name,key))
                             st.button('Explore target',key=f'mobile_explore_{item.Name}',on_click=mobile_choose_target,args=(item.Name,))
         else:
-            st.data_editor(shown.drop(columns='Name').style.set_properties(**{'color':'#d74747','background-color':'#000000'}) if night_mode else shown.drop(columns='Name'),hide_index=True,use_container_width=True,
+            st.data_editor(shown.drop(columns='Name').style.set_properties(**{'color':'#d74747','background-color':'#000000'}) if night_mode else shown.drop(columns='Name'),hide_index=True,width='stretch',
                            key=table_key,on_change=edit_target_table,
                            disabled=[column for column in shown.columns if column not in ('Name', 'Explore', 'Tonight’s plan')],
                            column_config={'Type': st.column_config.TextColumn('Type',help='Object classification code. Expand Legend below for the full meanings.'),
@@ -390,7 +397,7 @@ with st.expander(f'Tonight’s plan — {day.isoformat()} ({len(planned)} target
                 st.markdown(f'**{selected.Target}**')
                 st.write(f'{selected["Best window"]} · {selected.Hours:.2f} usable hours')
         else:
-            st.dataframe(planned_results.drop(columns='Name'),hide_index=True,use_container_width=True)
+            st.dataframe(planned_results.drop(columns='Name'),hide_index=True,width='stretch')
     else:
         st.info('Check Tonight’s plan beside a target to include it in the plan export.')
 
@@ -426,7 +433,7 @@ with a:
             color=alt.Color('Object:N',scale=alt.Scale(range=['#d74747','#8c2525'])),
             tooltip=['Local time:T','Object:N','Degrees:Q']
         ).properties(background='#000000').configure_axis(labelColor='#d74747',titleColor='#d74747',gridColor='#351010',domainColor='#682020',tickColor='#682020').configure_legend(labelColor='#d74747',titleColor='#d74747').configure_view(stroke='#682020')
-        st.altair_chart(chart,use_container_width=True)
+        st.altair_chart(chart,width='stretch')
     else:
         st.line_chart(track(row,dates,lat,lon,tz))
 with b:
@@ -451,12 +458,12 @@ gallery=image_urls(row)
 if mobile:
     image_index=st.selectbox('Survey view',range(len(gallery)),format_func=lambda i:gallery[i][0])
     label,url=gallery[image_index]
-    st.image(url,caption=label,use_container_width=True)
+    st.image(url,caption=label,width='stretch')
     st.link_button('Open survey image',url)
 else:
     for col,(label,url) in zip(st.columns(3),image_urls(row)):
         with col:
-            st.image(url,caption=label,use_container_width=True)
+            st.image(url,caption=label,width='stretch')
             st.link_button('Open survey image',url)
 st.caption('Survey cutouts served by CDS HiPS2FITS: DSS2 (digitized photographic sky survey) and 2MASS (infrared). Three views, including two fields of view of DSS2; coverage and image availability vary. Infrared colors differ from visible-light imaging. These are reference images, not Seestar predictions.')
 if api_key:
@@ -478,7 +485,7 @@ if api_key:
                 for variable,value in weather.loc[hour].items():
                     st.write(f'**{variable}:** {value:.1f}' if pd.notna(value) else f'**{variable}:** unavailable')
             else:
-                st.dataframe(weather,use_container_width=True)
+                st.dataframe(weather,width='stretch')
             st.caption('Temperature and dew point are °F; wind speed is mph. Cloud, transparency and seeing retain provider scales. Forecast times are local. Historical or distant selected dates may fall outside forecast coverage.')
             st.download_button('Export forecast',weather.to_csv(),'forecast.csv')
 else: st.info('Enter your Astrospheric API key in the sidebar to load weather. Visibility calculations work without a key.')
