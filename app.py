@@ -9,8 +9,9 @@ from imaging_guidance import guidance
 from core import catalog, plan, track, records, save, image_urls, forecast, DATA, remember_api_key, remembered_api_key, forecast_us_units, planned_targets, set_planned
 mobile = st.query_params.get('view','desktop') == 'mobile'
 st.set_page_config(page_title='Darkwave Astro Suite',page_icon='🔭',layout='wide',initial_sidebar_state='collapsed' if mobile else 'auto')
-st.title('🔭 Darkwave Astro Suite')
-st.caption('Plan your night • Record your sessions • Review your images')
+with st.container(key='suite_heading'):
+    st.title('🔭 Darkwave Astro Suite')
+    st.caption('Plan your night • Record your sessions • Review your images')
 with st.container(key='theme_controls'):
     appearance=st.radio('Display theme',['Light','Dark'],index=0,horizontal=True,key='display_theme',
                         label_visibility='collapsed',
@@ -19,16 +20,24 @@ night_mode=appearance=='Dark'
 st.markdown("""
 <style>
 /* Compact header with the appearance control below the upper-right view link. */
-[data-testid="stMainBlockContainer"] {padding-top:3rem;}
+[data-testid="stMainBlockContainer"] {padding-top:2.5rem;}
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {gap:.6rem;}
+.st-key-suite_heading [data-testid="stVerticalBlock"] {gap:0;}
+.st-key-suite_heading h1 {padding-top:0;padding-bottom:.15rem;line-height:1.15;}
+.st-key-suite_heading p {margin-bottom:0;}
+/* Style-only elements must not reserve empty rows in the header. */
+[data-testid="stElementContainer"]:has([data-testid="stMarkdownContainer"] > style:only-child) {display:none;}
+[data-testid="stElementContainer"]:has(.dw-view-switch) {height:0;min-height:0;}
+.st-key-theme_controls [data-testid="stRadio"] {margin-bottom:0;}
 .st-key-theme_controls {
- position:fixed; top:calc(2.75rem + env(safe-area-inset-top, 0px));
+ position:fixed; top:calc(2.1rem + env(safe-area-inset-top, 0px));
  right:calc(.75rem + env(safe-area-inset-right, 0px));
  z-index:1000001; width:max-content !important;
- background:var(--dw-background); padding:.25rem .5rem; border-radius:4px;
+ background:var(--dw-background); padding:0 .35rem; border-radius:4px;
 }
 .st-key-theme_controls [role="radiogroup"] {justify-content:flex-end;}
 @media(max-width:600px) {
- [data-testid="stMainBlockContainer"] {padding-top:6rem !important;}
+ [data-testid="stMainBlockContainer"] {padding-top:4.5rem !important;}
 }
 /* The app supplies its own two-choice appearance control. */
 #MainMenu,[data-testid="stMainMenu"] {display:none;}
@@ -80,7 +89,7 @@ st.markdown("""<style>
  position:fixed; top:calc(.25rem + env(safe-area-inset-top, 0px));
  right:calc(.75rem + env(safe-area-inset-right, 0px));
  z-index:1000001; font-size:12px; line-height:1.4;
- padding:12px 8px; color:var(--dw-text); background:var(--dw-background);
+ padding:6px 8px; color:var(--dw-text); background:var(--dw-background);
  text-decoration:underline; border-radius:4px;
 }
 [data-testid="stToolbar"] {right:9rem;}
@@ -98,7 +107,7 @@ st.markdown(
 )
 if mobile:
     st.markdown("""<style>
-[data-testid="stMainBlockContainer"] {padding:3rem 1rem 3rem; max-width:1100px;}
+[data-testid="stMainBlockContainer"] {padding:2.5rem 1rem 3rem; max-width:1100px;}
 [data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stLinkButton"] a {min-height:44px;width:100%;}
 [data-testid="stCheckbox"] label {min-height:44px;align-items:center;}
 [data-testid="stTextInput"] input,[data-testid="stNumberInput"] input {font-size:16px;}
