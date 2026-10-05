@@ -36,8 +36,17 @@ night_mode=appearance=='Dark'
 st.markdown("""
 <style>
 /* Compact header with the appearance control below the upper-right view link. */
-[data-testid="stHeader"] {height:2.5rem;}
-[data-testid="stMainBlockContainer"] {padding-top:3.25rem;}
+/* Preserve native header space for the sidebar reopen button. */
+[data-testid="stHeader"] {overflow:visible;}
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+ visibility:visible !important;opacity:1 !important;z-index:1000002;
+}
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button {
+ color:var(--dw-text) !important;background:var(--dw-surface) !important;
+}
+[data-testid="stMainBlockContainer"] {padding-top:4rem;}
 [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {gap:.6rem;}
 .st-key-suite_heading [data-testid="stVerticalBlock"] {gap:0;}
 .st-key-suite_heading h1 {font-size:2rem;padding-top:.2rem;padding-bottom:.15rem;line-height:1.3;}
@@ -117,7 +126,7 @@ st.markdown(
 )
 if mobile:
     st.markdown("""<style>
-[data-testid="stMainBlockContainer"] {padding:3.25rem 1rem 3rem; max-width:1100px;}
+[data-testid="stMainBlockContainer"] {padding:4rem 1rem 3rem; max-width:1100px;}
 [data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stLinkButton"] a {min-height:44px;width:100%;}
 [data-testid="stCheckbox"] label {min-height:44px;align-items:center;}
 [data-testid="stTextInput"] input,[data-testid="stNumberInput"] input {font-size:16px;}
