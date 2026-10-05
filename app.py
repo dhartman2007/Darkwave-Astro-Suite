@@ -286,18 +286,7 @@ def mobile_plan_change(target,key):
     set_planned(day,target,st.session_state[key])
     st.session_state['table_revision']=st.session_state.get('table_revision',0)+1
 
-catalog_panel, plan_panel = (st.container(), st.container()) if mobile else st.columns([3, 1.25])
-with plan_panel:
-    with st.container(border=True, key='night_plan'):
-        st.subheader('Tonight’s plan')
-        st.caption(f'{day.isoformat()} · {len(planned)} selected targets')
-        if planned:
-            selected_catalog = df[df.Name.isin(planned)]
-            for _, selected in selected_catalog.iterrows():
-                st.markdown(f'**{selected.label}**')
-            st.caption('Generate the PDF below to include observing windows and guidance.')
-        else:
-            st.info('Check Tonight’s plan beside a target to add it.')
+catalog_panel, preview_panel = (st.container(), st.container()) if mobile else st.columns([3, 1.25])
 with catalog_panel:
     with st.container(border=True, key='target_catalog'):
         st.subheader('Target catalog')
@@ -331,6 +320,37 @@ with catalog_panel:
                                           'Tonight’s plan': st.column_config.CheckboxColumn('Tonight’s plan',help='Add or remove this target for the selected date.')})
             st.caption('Check Tonight’s plan to add or remove a target. Check Explore to display its details below.')
             
+    with st.container(border=True, key='night_plan'):
+        st.subheader('Tonight’s plan')
+        st.caption(f'{day.isoformat()} · {len(planned)} selected targets')
+        if planned:
+            selected_catalog = df[df.Name.isin(planned)]
+            for _, selected in selected_catalog.iterrows():
+                st.markdown(f'**{selected.label}**')
+            st.caption('Generate the PDF below to include observing windows and guidance.')
+        else:
+            st.info('Check Tonight’s plan beside a target to add it.')
+
+with preview_panel:
+    with st.container(border=True, key='reference_preview'):
+        st.subheader('Reference image')
+        if shown.empty:
+            st.info('No targets match the selected limits.')
+        else:
+            preview_name = st.session_state.get('explore_target')
+            if preview_name not in shown.Name.values:
+                preview_name = shown.iloc[0].Name
+            preview_row = df[df.Name == preview_name].iloc[0]
+            st.markdown(f'**{preview_row.label}**')
+            preview_gallery = image_urls(preview_row)
+            preview_index = st.selectbox('Survey view', range(len(preview_gallery)),
+                                        format_func=lambda i: preview_gallery[i][0],
+                                        key='catalog_reference_view')
+            preview_label, preview_url = preview_gallery[preview_index]
+            st.image(preview_url, caption=preview_label, width='stretch')
+            st.link_button('Open reference image', preview_url)
+            st.caption('Survey reference from CDS. Select Explore in the catalog to change the target.')
+
 with st.expander('Legend — object types and observing columns'):
     st.markdown('**Object type codes**')
     st.table(pd.DataFrame(
