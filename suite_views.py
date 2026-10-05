@@ -34,13 +34,12 @@ def localize(rows, zone):
 def overview(day, zone):
     config = read_suite()
     result = sessions(config['logs'])
-    st.subheader('Your observing workspace')
     cols = st.columns(3)
     cols[0].metric('Planned tonight', len(planned_targets(day)))
     cols[1].metric('Recent sessions', len(result['sessions']))
     cols[2].metric('Suite collector', 'Running' if collector().running else 'Stopped')
     st.caption('Session history shows up to the latest 500 sessions. Collector status refers to the process started here.')
-    st.markdown('Choose **Planner** to build your night, **Sessions** to review captured files and possible crossings, or **Logger & settings** to start collection.')
+    st.markdown('Choose **Planner** to build your night, **Sessions** to review captured files and possible crossings, or **Logger** to start collection.')
     planned = sorted(planned_targets(day))
     if planned:
         st.write('Tonight’s saved targets: ' + ', '.join(planned))
