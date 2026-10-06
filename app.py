@@ -1,6 +1,8 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import json
+import base64
+from pathlib import Path
 import pandas as pd
 import streamlit as st
 import altair as alt
@@ -102,6 +104,35 @@ if night_mode:
 }
 [data-baseweb="popover"] *,[role="option"] {color:#d74747 !important;background:#080000 !important;}
 </style>""",unsafe_allow_html=True)
+
+@st.cache_data(show_spinner=False)
+def background_image():
+    path = Path(__file__).resolve().parent / 'assets' / 'observatory-background.webp'
+    return base64.b64encode(path.read_bytes()).decode('ascii') if path.exists() else ''
+
+if not night_mode:
+    image_data = background_image()
+    if image_data:
+        st.markdown(f"""<style>
+.stApp {{
+ background-image:url("data:image/webp;base64,{image_data}") !important;
+ background-size:cover !important;background-position:center bottom !important;
+ background-repeat:no-repeat !important;background-attachment:fixed !important;
+}}
+[data-testid="stAppViewContainer"],[data-testid="stMain"] {{
+ background:transparent !important;
+}}
+[data-testid="stMainBlockContainer"] {{
+ background:color-mix(in srgb, var(--dw-background) 88%, transparent);
+ border-radius:12px;
+}}
+[data-testid="stSidebar"],[data-testid="stHeader"] {{
+ background:var(--dw-background) !important;
+}}
+.stApp [data-testid="stExpander"] details {{
+ background:var(--dw-surface);
+}}
+</style>""", unsafe_allow_html=True)
 
 st.markdown("""<style>
 .dw-view-switch {
