@@ -18,6 +18,9 @@ if 'suite_module' not in st.session_state:
 navigation = st.container() if mobile else st.sidebar
 with navigation:
     if not mobile:
+        logo_path = Path(__file__).resolve().parent / 'assets' / 'darkwave-logo.webp'
+        if logo_path.exists():
+            st.image(str(logo_path), width=88)
         st.markdown('### Darkwave Astro Suite')
         st.caption('Plan • Record • Review')
     module = st.radio('Workspace', modules, key='suite_module',
