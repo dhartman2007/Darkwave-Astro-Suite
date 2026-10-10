@@ -99,7 +99,7 @@ st.markdown("""<style>
 switch_view = 'desktop' if mobile else 'mobile'
 switch_label = 'Desktop version' if mobile else 'Mobile version'
 switch_module = st.session_state.get('suite_module', st.query_params.get('module', 'Overview'))
-if switch_module not in ('Overview', 'Planner', 'Sessions', 'Logger'):
+if switch_module not in ('Overview', 'Planner', 'ISS Transits', 'Sessions', 'Logger'):
     switch_module = 'Overview'
 st.markdown(
     f'<a class="dw-view-switch" href="?view={switch_view}&module={switch_module}" target="_self" '
@@ -118,7 +118,7 @@ if mobile:
 [data-testid="stColumn"] {width:100% !important;flex:1 1 100% !important;}
 }
 </style>""",unsafe_allow_html=True)
-modules = ['Overview', 'Planner', 'Sessions', 'Logger']
+modules = ['Overview', 'Planner', 'ISS Transits', 'Sessions', 'Logger']
 requested_module = st.query_params.get('module', 'Overview')
 if 'suite_module' not in st.session_state:
     st.session_state.suite_module = requested_module if requested_module in modules else 'Overview'
@@ -177,6 +177,10 @@ with settings_panel:
             remember_api_key(api_key)
         except OSError:
             st.error('Could not save the API key. Check that the data folder is writable.')
+if module == 'ISS Transits':
+    from transit_view import transits
+    transits(day, lat, lon, tz, place, DATA)
+    st.stop()
 if module != 'Planner':
     from suite_views import overview, session_history, logger_settings
     if module == 'Overview': overview(day, tz)
@@ -436,3 +440,4 @@ if api_key:
             st.download_button('Export forecast',weather.to_csv(),'forecast.csv')
 else: st.info('Enter your Astrospheric API key in the sidebar to load weather. Visibility calculations work without a key.')
 st.download_button('Back up imaging log',logs.to_csv(index=False),'imaging_log.csv','text/csv')
+

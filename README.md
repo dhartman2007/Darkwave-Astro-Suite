@@ -1,7 +1,7 @@
 # Darkwave Astro Suite
 
 One local browser application combining the Target Planner and SeeStar Logger.
-Use **Overview**, **Planner**, **Sessions**, and **Logger** across the top. The
+Use **Overview**, **Planner**, **ISS Transits**, **Sessions**, and **Logger** across the top. The
 desktop/mobile switch and black/red night display apply to every workspace.
 
 ## Get the suite
@@ -100,7 +100,7 @@ Needs reimage, including M31 and NGC869.
 ## Validation
 
 ```
-python -m pytest -q test_core.py test_suite.py
+python -m pytest -q test_core.py test_suite.py test_iss_transits.py
 python -m unittest discover -s logger/tests
 ```
 
@@ -122,6 +122,8 @@ streamlit run app.py --server.address 127.0.0.1
 ```
 
 ## Features
+- ISS Sun/Moon disk-transit predictions from the selected observing latitude, longitude, elevation and time zone. Open **ISS Transits**, select a start date and one to seven days, then click **Find ISS transits**. Results include local ingress/closest/egress times, duration, altitude, azimuth, range and CSV export. Near misses are explicitly separate from crossings at your location. This workspace reports results on demand; it does not send background notifications.
+- ISS predictions use CelesTrak NORAD 25544 TLEs, Skyfield SGP4 propagation and the JPL DE421 ephemeris. Orbit data is cached for one hour under data/transits; the refresh checkbox requests a new orbit. The first search downloads DE421. Provider/download failures appear as errors, not empty successful searches. Search endpoints must be within seven days of the orbit epoch; older/far-future searches require a suitable element set and are rejected. Recheck close to the event: orbital errors and maneuvers can move the very narrow path. Times refine to milliseconds numerically but this is not a physical accuracy guarantee. Geometric center crossings exclude the ISS silhouette size, refraction, terrain, clouds and illumination constraints. Sun and Moon must be above the geometric horizon. Use a proper front-mounted solar filter for solar observing.
 - OpenNGC NGC/IC catalog and Messier cross-references, including addendum objects M40 and M45. M102 uses NGC5866 as an explicit planner convention; its historical identification is disputed. Both CSVs are bundled; missing files are downloaded and cached in data/. No fabricated fallback catalog.
 - Editable latitude, longitude, location name and IANA time zone. Foley is the default. Save location persists your choice. Longitude west is negative. Change the time zone when traveling; it is not inferred from coordinates.
 - Selected evening date covers local noon through next local noon. Astronomical darkness, minimum altitude, optional southern obstruction, Moon separation, Moon-free hours, best continuous window and altitude chart. Local time includes DST.
@@ -154,3 +156,4 @@ PDF plans: click Generate tonight’s plan PDF, then Download tonight’s plan P
 Night overview update: copy app.py, plan_pdf.py and night_summary.py into your installation. Generate PDF refreshes Astrospheric weather using the saved API key and consumes the provider’s normal API credits. Forecast rows cover 6 PM through roughly 6 AM in local time; unavailable coverage is labeled. Keep the fonts folder and your data folder.
 
 Imaging guidance: targets now show a transparent heuristic SeeStar suitability rating, configurable approximate frame dimensions, Moon interference and phase, filter guidance, and estimated accepted stacked exposure. The PDF adds a guidance page after each target image/details page. These are planning estimates, not calibrated exposure predictions; field rotation, rejection rate, light pollution and actual surface brightness affect results. To update copy app.py, plan_pdf.py and imaging_guidance.py into the installation. Preserve data and fonts.
+
