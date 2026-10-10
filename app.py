@@ -152,7 +152,7 @@ OBJECT_TYPE_LABELS = {
 
 settings_file=DATA/'settings.json'
 settings=json.loads(settings_file.read_text()) if settings_file.exists() else {}
-settings_panel=st.expander('Location, date & observing settings') if mobile else st.sidebar
+settings_panel=st.expander('Settings — location, date, equipment & weather', expanded=False)
 with settings_panel:
     st.header('Observing location')
     place=st.text_input('Location name',settings.get('place','Foley, Alabama'))
