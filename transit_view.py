@@ -41,7 +41,7 @@ def transits(day, lat, lon, tz, place, data):
     frame = pd.DataFrame(rows)
     for column in ('closest_utc', 'ingress_utc', 'egress_utc'):
         frame[column.replace('_utc', '_local')] = frame[column].map(
-            lambda value: datetime.fromisoformat(value).astimezone(ZoneInfo(tz)).isoformat(timespec='milliseconds') if value else '')
+            lambda value: datetime.fromisoformat(value).astimezone(ZoneInfo(tz)).isoformat(timespec='milliseconds') if pd.notna(value) else '')
     actual = frame[frame.classification == 'Disk transit']
     st.write(f'**{len(actual)} disk transit(s)** · {len(frame)-len(actual)} near miss(es)')
     for _, row in frame.iterrows():
