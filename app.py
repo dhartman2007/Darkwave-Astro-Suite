@@ -6,6 +6,7 @@ import streamlit as st
 import altair as alt
 from plan_pdf import build_plan_pdf
 from imaging_guidance import guidance
+from equipment import read_equipment, save_equipment
 from core import catalog, plan, track, records, save, image_urls, forecast, DATA, remember_api_key, remembered_api_key, forecast_us_units, planned_targets, set_planned
 mobile = st.query_params.get('view','desktop') == 'mobile'
 st.set_page_config(page_title='Darkwave Astro Suite',page_icon='🔭',layout='wide',initial_sidebar_state='collapsed' if mobile else 'auto')
@@ -99,7 +100,7 @@ st.markdown("""<style>
 switch_view = 'desktop' if mobile else 'mobile'
 switch_label = 'Desktop version' if mobile else 'Mobile version'
 switch_module = st.session_state.get('suite_module', st.query_params.get('module', 'Overview'))
-if switch_module not in ('Overview', 'Planner', 'ISS Transits', 'Sessions', 'Logger'):
+if switch_module not in ('Overview', 'Planner', 'ISS Transits', 'ISS Passes', 'Equipment', 'Sessions', 'Logger'):
     switch_module = 'Overview'
 st.markdown(
     f'<a class="dw-view-switch" href="?view={switch_view}&module={switch_module}" target="_self" '
@@ -118,7 +119,7 @@ if mobile:
 [data-testid="stColumn"] {width:100% !important;flex:1 1 100% !important;}
 }
 </style>""",unsafe_allow_html=True)
-modules = ['Overview', 'Planner', 'ISS Transits', 'Sessions', 'Logger']
+modules = ['Overview', 'Planner', 'ISS Transits', 'ISS Passes', 'Equipment', 'Sessions', 'Logger']
 requested_module = st.query_params.get('module', 'Overview')
 if 'suite_module' not in st.session_state:
     st.session_state.suite_module = requested_module if requested_module in modules else 'Overview'
@@ -168,9 +169,28 @@ with settings_panel:
     moon_sep=st.slider('Minimum Moon separation when Moon is up',0,180,30)
     south=st.slider('Southern obstruction height (azimuth 90–270°)',0,90,0)
     st.caption('Set 0° for an unobstructed southern sky. Times use the selected time zone, including DST.')
-    fov_long=st.number_input('SeeStar frame long side (degrees)',0.1,10.0,2.8,step=0.1)
-    fov_short=st.number_input('SeeStar frame short side (degrees)',0.1,10.0,1.575,step=0.1)
-    st.caption('Approximate S50 Pro framing; adjust to your actual imaging mode. Suitability and integration are planning estimates.')
+    try:
+        equipment_config = read_equipment(DATA)
+        equipment_ids = [item['id'] for item in equipment_config['profiles']]
+        if st.session_state.get('equipment_saved_active') != equipment_config['active']:
+            st.session_state['planning_equipment'] = equipment_config['active']
+            st.session_state['equipment_saved_active'] = equipment_config['active']
+        active_id = st.selectbox('Planning equipment', equipment_ids,
+            index=None,
+            format_func=lambda key: next(item['name'] for item in equipment_config['profiles'] if item['id'] == key),
+            key='planning_equipment')
+        if active_id != equipment_config['active']:
+            equipment_config['active'] = active_id
+            save_equipment(DATA, equipment_config)
+            st.session_state['equipment_saved_active'] = active_id
+        equipment = next(item for item in equipment_config['profiles'] if item['id'] == active_id)
+    except (ValueError, OSError, KeyError) as error:
+        st.error(f'Equipment settings unavailable: {error}')
+        st.stop()
+    fov_key = f'{active_id}_{equipment["fov_long"]}_{equipment["fov_short"]}'
+    fov_long=st.number_input('Planning frame long side (degrees)',0.01,180.0,float(equipment['fov_long']),step=0.1,key='fov_long_'+fov_key)
+    fov_short=st.number_input('Planning frame short side (degrees)',0.01,180.0,float(equipment['fov_short']),step=0.1,key='fov_short_'+fov_key)
+    st.caption('Saved equipment defaults apply here. Frame overrides last for this browser session; edit Equipment to save them.')
     api_key=st.text_input('Astrospheric API key',value=remembered_api_key(),type='password',help='Saved locally in this installation’s data folder and loaded on restart. Clear the field to forget it. Forecast requests use your API credits.')
     if api_key.strip() != remembered_api_key():
         try:
@@ -181,9 +201,17 @@ if module == 'ISS Transits':
     from transit_view import transits
     transits(day, lat, lon, tz, place, DATA)
     st.stop()
+if module == 'ISS Passes':
+    from pass_view import passes
+    passes(day, lat, lon, tz, place, DATA)
+    st.stop()
+if module == 'Equipment':
+    from equipment import equipment_view
+    equipment_view(DATA)
+    st.stop()
 if module != 'Planner':
     from suite_views import overview, session_history, logger_settings
-    if module == 'Overview': overview(day, tz)
+    if module == 'Overview': overview(day, tz, lat, lon, place, minimum, moon_sep, south, fov_long, fov_short, api_key)
     elif module == 'Sessions': session_history(tz)
     else: logger_settings()
     st.stop()
@@ -313,9 +341,9 @@ if planned:
 export_plan, export_all=(st.container(),st.container()) if mobile else st.columns(2)
 with export_plan:
     @st.cache_data(show_spinner=False,max_entries=4)
-    def make_pdf(catalog,results,dates,dark,day,place,lat,lon,tz,minimum,moon_sep,south,weather,weather_note,fov_long,fov_short):
-        return build_plan_pdf(catalog,results,dates,dark,day,place,lat,lon,tz,minimum,moon_sep,south,weather,weather_note,fov_long,fov_short)
-    pdf_identity=(day.isoformat(),place,lat,lon,tz,minimum,moon_sep,south,tuple(sorted(planned)),fov_long,fov_short)
+    def make_pdf(catalog,results,dates,dark,day,place,lat,lon,tz,minimum,moon_sep,south,weather,weather_note,fov_long,fov_short,equipment):
+        return build_plan_pdf(catalog,results,dates,dark,day,place,lat,lon,tz,minimum,moon_sep,south,weather,weather_note,fov_long,fov_short,equipment)
+    pdf_identity=(day.isoformat(),place,lat,lon,tz,minimum,moon_sep,south,tuple(sorted(planned)),fov_long,fov_short,json.dumps(equipment,sort_keys=True))
     if st.button('Generate tonight’s plan PDF',disabled=planned_results.empty):
         try:
             pdf_weather=None
@@ -329,7 +357,7 @@ with export_plan:
                     weather_note=f'Astrospheric forecast unavailable: {error}'
                     st.warning(weather_note)
             with st.spinner('Building PDF and loading object images…'):
-                pdf=make_pdf(planned_catalog,planned_results,plan_dates,plan_dark,day,place,lat,lon,tz,minimum,moon_sep,south,pdf_weather,weather_note,fov_long,fov_short)
+                pdf=make_pdf(planned_catalog,planned_results,plan_dates,plan_dark,day,place,lat,lon,tz,minimum,moon_sep,south,pdf_weather,weather_note,fov_long,fov_short,equipment)
             st.session_state['plan_pdf']=(pdf_identity,pdf)
         except Exception as e:
             st.session_state.pop('plan_pdf',None)
@@ -357,9 +385,9 @@ if st.session_state.get('explore_target') not in options:
     st.session_state['explore_target'] = options[0]
 name=st.selectbox('Explore target',options,key='explore_target',format_func=lambda n:df.loc[df.Name==n,'label'].iloc[0])
 row=df[df.Name==name].iloc[0]
-advice=guidance(row,dates,lat,lon,tz,minimum,moon_sep,south,fov_long,fov_short)
-with st.expander('SeeStar suitability, Moon impact and imaging time',expanded=True):
-    st.write(f'**SeeStar suitability: {advice["rating"]}**')
+advice=guidance(row,dates,lat,lon,tz,minimum,moon_sep,south,fov_long,fov_short,equipment)
+with st.expander('Equipment framing, Moon impact and imaging time',expanded=True):
+    st.write(f'**{equipment["name"]} framing: {advice["rating"]}**')
     st.write(advice['reason'])
     st.caption(advice['fov'])
     st.write('**Moon impact:** '+advice['moon'])

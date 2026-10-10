@@ -31,7 +31,9 @@ def localize(rows, zone):
     return rows
 
 
-def overview(day, zone):
+def overview(day, zone, lat, lon, place, minimum, moon_sep, south, fov_long, fov_short, api_key):
+    from dashboard import observing_dashboard
+    observing_dashboard(day, lat, lon, zone, place, minimum, moon_sep, south, fov_long, fov_short, api_key)
     config = read_suite()
     result = sessions(config['logs'])
     st.subheader('Your observing workspace')
@@ -177,3 +179,4 @@ def session_history(zone):
                     st.success('Imaging record and session link saved.')
                 except ValueError:
                     st.error('Use YYYY-MM-DD for the first imaging date.')
+

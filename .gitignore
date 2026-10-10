@@ -8,6 +8,7 @@ data/suite.json
 data/logs/
 data/runtime/
 data/transits/
+data/equipment.json*
 logger/logs/
 logger/private/
 logger/orbital_data/

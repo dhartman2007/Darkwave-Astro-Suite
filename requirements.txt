@@ -8,4 +8,5 @@ reportlab>=4,<5
 sgp4==2.27
 cryptography
 skyfield>=1.49,<2
+pydeck>=0.9,<1
 
