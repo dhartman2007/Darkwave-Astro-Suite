@@ -46,7 +46,7 @@ def cutout(url):
     response.raise_for_status()
     return response.content
 
-def build_plan_pdf(catalog, results, dates, dark, day, place, lat, lon, tz, minimum, moon_sep, south, weather=None, weather_note="", fov_long=2.8, fov_short=1.575):
+def build_plan_pdf(catalog, results, dates, dark, day, place, lat, lon, tz, minimum, moon_sep, south, weather=None, weather_note="", fov_long=2.8, fov_short=1.575, equipment=None):
     output = BytesIO()
     doc = SimpleDocTemplate(output, pagesize=(612,792), rightMargin=42,leftMargin=42,topMargin=36,bottomMargin=38)
     font_dir=Path(__file__).parent/'fonts'
@@ -112,8 +112,10 @@ def build_plan_pdf(catalog, results, dates, dark, day, place, lat, lon, tz, mini
         peak=f'{result["Peak °"]} degrees at {peak_time:%m/%d %I:%M %p}' if peak_time is not None else 'No darkness'
         fields=[('Best imaging window', result['Best window']+' (local, 24-hour time)'),('Usable / Moon-free hours',f'{result.Hours:.2f} / {result["Moon-free h"]:.2f} hours'),('Highest altitude in darkness',peak),('Astronomical darkness',darkness_text),('Object / constellation',f'{kind} / {row.Const}'),('RA / Dec (J2000)',f'{row.RA} / {row.Dec}'),('Angular size / V magnitude',f'{row.MajAx or "unknown"} x {row.MinAx or "unknown"} arcmin / {row["V-Mag"] or "unknown"}')]
         story.extend([table(fields),Spacer(1,9),para(f'Location: {lat:.5f}, {lon:.5f}. Limits: altitude >= {minimum} degrees; Moon separation >= {moon_sep} degrees when Moon is up; southern obstruction {south} degrees. Times sampled every 5 minutes. Best window is the longest interval meeting these limits.', 'Caption'),para('Weather is not included in this geometric imaging window. Check clouds, wind and dew before setting up.', 'Caption'),para('Description/catalog: '+source, 'Caption')])
-        advice=guidance(row,dates,lat,lon,tz,minimum,moon_sep,south,fov_long,fov_short)
-        story.extend([PageBreak(),para('SeeStar Imaging Guidance','Title'),para(row.label,'Heading2'),para(f'{day.isoformat()} | {place} | {tz}','Caption'),Spacer(1,14)])
+        advice=guidance(row,dates,lat,lon,tz,minimum,moon_sep,south,fov_long,fov_short,equipment)
+        story.extend([PageBreak(),para('Equipment Imaging Guidance','Title'),para(row.label,'Heading2'),para(f'{day.isoformat()} | {place} | {tz}','Caption'),Spacer(1,14)])
+        if equipment:
+            story.append(para(f'{equipment["name"]} | {equipment["telescope"]} | {equipment["camera"]}'))
         for heading,text in [('Suitability - '+advice['rating'],advice['reason']),('Framing',advice['fov']),('Moon impact tonight',advice['moon']),('Filter guidance',advice['filter']),('Suggested total integration',advice['integration'])]:
             story.extend([para(heading,'Heading2'),para(text),Spacer(1,8)])
         story.extend([para(f'Moon-free usable time: {advice["moon_free"]:.1f} hours. Best imaging window: {result["Best window"]} (local time).'),Spacer(1,10),para(advice['assumptions'],'Caption'),para('Instrument reference: https://www.seestar.com/products/seestar-s50-pro-smart-telescope','Caption')])
@@ -123,3 +125,4 @@ def build_plan_pdf(catalog, results, dates, dark, day, place, lat, lon, tz, mini
         canvas.drawRightString(570,22,f'Page {doc.page}')
     doc.build(story,onFirstPage=footer,onLaterPages=footer)
     return output.getvalue()
+

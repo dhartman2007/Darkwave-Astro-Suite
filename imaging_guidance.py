@@ -30,7 +30,7 @@ def suitability(row, fov_long=2.8, fov_short=1.575):
     else:reason+=' Faint extended structure needs dark skies and longer integration.'
     return 'Good starting target',reason
 
-def guidance(row,dates,lat,lon,tz,minimum=30,moon_sep=30,south=0,fov_long=2.8,fov_short=1.575):
+def guidance(row,dates,lat,lon,tz,minimum=30,moon_sep=30,south=0,fov_long=2.8,fov_short=1.575,equipment=None):
     ts=Time(dates)
     site=EarthLocation.from_geodetic(lon*u.deg,lat*u.deg)
     frame=AltAz(obstime=ts,location=site,pressure=0*u.hPa)
@@ -82,4 +82,15 @@ def guidance(row,dates,lat,lon,tz,minimum=30,moon_sep=30,south=0,fov_long=2.8,fo
         time_text+=f' Tonight’s longest usable window is only {longest:.1f} hours: collect what you can and combine additional nights.'
     else:time_text+=f' Tonight’s longest usable window is {longest:.1f} hours.'
     if rating=='Mosaic / partial frame':time_text+=' Time estimate is per panel; a mosaic needs more total imaging time.'
-    return {'rating':rating,'reason':reason,'moon':impact,'filter':filter_note,'integration':time_text,'moon_free':moon_free,'assumptions':'Rule-based estimates for a 50 mm smart telescope, not measured performance. Actual results depend on surface brightness, sky brightness, transparency, tracking, processing and rejected frames. Wall-clock time will exceed accepted integration.','fov':f'Configured frame {fov_long:g} x {fov_short:g} degrees (approximate; adjustable in the sidebar).'}
+    assumptions='Rule-based estimates for a 50 mm smart telescope, not measured performance. Actual results depend on surface brightness, sky brightness, transparency, tracking, processing and rejected frames. Wall-clock time will exceed accepted integration.'
+    if equipment:
+        from equipment import equipment_filter
+        filter_note = equipment_filter(row.Type, equipment)
+        if equipment['kind'] != 'Seestar' or equipment['aperture_mm'] != 50:
+            if rating == 'Challenging detail':
+                rating = 'Small angular target'
+                reason = 'Fits the configured frame. Resolved detail depends on your optics, pixel scale, seeing and tracking.'
+            time_text = 'No calibrated integration estimate is available for this equipment. Use your measured exposure results and tonight’s usable window to plan.'
+            assumptions = 'Framing uses the active equipment field of view; filters use your saved inventory. Instrument sensitivity and resolution are not modeled.'
+    return {'rating':rating,'reason':reason,'moon':impact,'filter':filter_note,'integration':time_text,'moon_free':moon_free,'assumptions':assumptions,'fov':f'Configured frame {fov_long:g} x {fov_short:g} degrees (approximate; adjustable in the sidebar).'}
+

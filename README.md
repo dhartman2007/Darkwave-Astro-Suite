@@ -1,7 +1,7 @@
 # Darkwave Astro Suite
 
 One local browser application combining the Target Planner and SeeStar Logger.
-Use **Overview**, **Planner**, **Sessions**, and **Logger** across the top. The
+Use **Overview**, **Planner**, **ISS Transits**, **ISS Passes**, **Equipment**, **Sessions**, and **Logger** across the top. The
 desktop/mobile switch and black/red night display apply to every workspace.
 
 ## Get the suite
@@ -100,7 +100,7 @@ Needs reimage, including M31 and NGC869.
 ## Validation
 
 ```
-python -m pytest -q test_core.py test_suite.py
+python -m pytest -q test_core.py test_suite.py test_iss_transits.py test_observing_features.py
 python -m unittest discover -s logger/tests
 ```
 
@@ -122,6 +122,12 @@ streamlit run app.py --server.address 127.0.0.1
 ```
 
 ## Features
+- **Nearby transit map:** Under ISS Transits select Nearby paths and a 10–500 km centerline search radius. The map shows the geometric centerline, an approximate visibility corridor, your location, and the nearest centerline point with local event time, coordinates, straight-line distance in km/miles, directions link and CSV export. Nearby paths use the WGS84 surface; they do not account for terrain or site elevation. The band joins two-second disk footprints. Search distance is to the centerline, not the band edge; road distances and accessible observing sites require separate checking. Map tiles need internet.
+- **Observing dashboard:** Overview combines saved targets and observing windows, equipment framing, Moon illumination/rise/set and twilight, Astrospheric weather, tonight's potentially visible ISS passes and three days of local Sun/Moon transits. Weather and ISS refresh buttons make provider calls explicit. Weather refresh consumes normal API credits. Changing date or location invalidates mismatched ISS results; target and Moon information follow the selected night.
+- **ISS visible passes:** Search one to seven days with an altitude threshold. Pass cards show start/end directions, peak direction and altitude, whether the station is sunlit at peak, and approximate visible intervals. Potential visibility requires the ISS above the selected altitude, a sunlit station and the Sun below −6°. Visibility intervals use at most five-second samples; weather, brightness and local obstructions are not modeled. CSV export includes UTC and local times.
+- **Equipment profiles:** Save named Seestar or telescope/camera setups, aperture, focal length, available filters and field of view under Equipment. Select Planning equipment in the location panel. The active profile supplies Planner/PDF framing and available-filter guidance; arbitrary instruments do not receive the old 50 mm exposure estimate. The camera field-of-view calculator helps derive frame dimensions from sensor size and effective focal length. Profiles persist in data/equipment.json; back this file up with your other settings. Sidebar frame overrides are temporary.
+- ISS Sun/Moon disk-transit predictions from the selected observing latitude, longitude, elevation and time zone. Open **ISS Transits**, select a start date and one to seven days, then click **Find ISS transits**. Results include local ingress/closest/egress times, duration, altitude, azimuth, range and CSV export. Near misses are explicitly separate from crossings at your location. This workspace reports results on demand; it does not send background notifications.
+- ISS predictions use CelesTrak NORAD 25544 TLEs, Skyfield SGP4 propagation and the JPL DE421 ephemeris. Orbit data is cached for one hour under data/transits; the refresh checkbox requests a new orbit. The first search downloads DE421. Provider/download failures appear as errors, not empty successful searches. Search endpoints must be within seven days of the orbit epoch; older/far-future searches require a suitable element set and are rejected. Recheck close to the event: orbital errors and maneuvers can move the very narrow path. Times refine to milliseconds numerically but this is not a physical accuracy guarantee. Geometric center crossings exclude the ISS silhouette size, refraction, terrain, clouds and illumination constraints. Sun and Moon must be above the geometric horizon. Use a proper front-mounted solar filter for solar observing.
 - OpenNGC NGC/IC catalog and Messier cross-references, including addendum objects M40 and M45. M102 uses NGC5866 as an explicit planner convention; its historical identification is disputed. Both CSVs are bundled; missing files are downloaded and cached in data/. No fabricated fallback catalog.
 - Editable latitude, longitude, location name and IANA time zone. Foley is the default. Save location persists your choice. Longitude west is negative. Change the time zone when traveling; it is not inferred from coordinates.
 - Selected evening date covers local noon through next local noon. Astronomical darkness, minimum altitude, optional southern obstruction, Moon separation, Moon-free hours, best continuous window and altitude chart. Local time includes DST.
@@ -154,3 +160,4 @@ PDF plans: click Generate tonight’s plan PDF, then Download tonight’s plan P
 Night overview update: copy app.py, plan_pdf.py and night_summary.py into your installation. Generate PDF refreshes Astrospheric weather using the saved API key and consumes the provider’s normal API credits. Forecast rows cover 6 PM through roughly 6 AM in local time; unavailable coverage is labeled. Keep the fonts folder and your data folder.
 
 Imaging guidance: targets now show a transparent heuristic SeeStar suitability rating, configurable approximate frame dimensions, Moon interference and phase, filter guidance, and estimated accepted stacked exposure. The PDF adds a guidance page after each target image/details page. These are planning estimates, not calibrated exposure predictions; field rotation, rejection rate, light pollution and actual surface brightness affect results. To update copy app.py, plan_pdf.py and imaging_guidance.py into the installation. Preserve data and fonts.
+
