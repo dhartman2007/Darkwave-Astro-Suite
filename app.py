@@ -258,6 +258,7 @@ shown=results[results.Hours>=2] if only else results
 # Editing a plan checkbox persists immediately; Explore chooses the details below.
 shown = shown.copy()
 shown.insert(0, 'Explore', shown.Name.eq(st.session_state.get('explore_target')))
+shown.insert(0, 'Tonight’s plan', shown.pop('Tonight’s plan'))
 table_key = f"target_editor_{day.isoformat()}_{st.session_state.get('table_revision', 0)}"
 def edit_target_table():
     changes = st.session_state.get(table_key, {}).get('edited_rows', {})
